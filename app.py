@@ -25,12 +25,11 @@ st.set_page_config(
 
 PAGE_GROUPS = {
     "대시보드": ["대시보드"],
-    "영업관리": ["수주 현황"],
+    "영업관리": ["수주/미출고 현황", "견적/발주서 변환"],
+    "구매-자재관리": ["자재/BOM", "자재 발주"],
+    "재고관리": ["제품 재고", "재고 출납기록", "배터리 관리"],
+    "AS관리": ["AS 이력"],
     "경영관리": ["경영 요약"],
-    "구매재고관리": ["재고 관리", "재고 출납기록", "자재/BOM", "자재 발주"],
-    "배터리관리": ["배터리 관리"],
-    "AS관리": ["AS 관리"],
-    "문서출력": ["견적/주문서"],
 }
 
 
@@ -61,23 +60,23 @@ def render_db_controls() -> None:
 def route(menu: str, available_tables: list[str]) -> None:
     if menu == "대시보드":
         render_dashboard()
-    elif menu == "수주 현황":
+    elif menu in {"수주 현황", "수주/미출고 현황", "영업내역"}:
         render_sales_orders()
     elif menu == "경영 요약":
         render_management_summary()
-    elif menu == "재고 관리":
+    elif menu in {"재고 관리", "제품 재고"}:
         render_current_inventory()
     elif menu == "재고 출납기록":
         render_inventory_history(available_tables)
-    elif menu == "자재/BOM":
+    elif menu in {"자재/BOM", "자재 현황", "BOM 조회"}:
         render_materials_bom()
-    elif menu == "자재 발주":
+    elif menu in {"자재 발주", "발주 필요 품목"}:
         render_material_purchases()
-    elif menu == "배터리 관리":
+    elif menu in {"배터리 관리", "배터리 재고", "배터리 입출고", "미출고 달력"}:
         render_battery_management()
-    elif menu == "AS 관리":
+    elif menu in {"AS 관리", "AS 이력"}:
         render_as_management()
-    elif menu == "견적/주문서":
+    elif menu in {"견적/주문서", "견적/발주서 변환"}:
         render_document_converter()
     else:
         st.error(f"알 수 없는 메뉴입니다: {menu}")
