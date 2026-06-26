@@ -36,30 +36,27 @@ if not exist "%LOG_DIR%" mkdir "%LOG_DIR%"
 powershell -NoProfile -ExecutionPolicy Bypass -Command "$conn = Get-NetTCPConnection -LocalPort %PORT% -State Listen -ErrorAction SilentlyContinue; if ($conn) { exit 10 } else { exit 0 }"
 if "%ERRORLEVEL%"=="10" (
     echo [MegaCell ERP] Server is already running on port %PORT%.
-    start "" "%URL%"
+    if not "%NO_BROWSER%"=="1" start "" "%URL%"
     goto :show_urls
 )
 
-where python >nul 2>nul
-if "%ERRORLEVEL%"=="0" (
-    set "PY_CMD=python"
+set "PY_EXE=%LOCALAPPDATA%\Python\bin\python.exe"
+if exist "%PY_EXE%" (
+    set "PY_LABEL=%PY_EXE%"
 ) else (
-    where py >nul 2>nul
-    if "%ERRORLEVEL%"=="0" (
-        set "PY_CMD=py -3"
-    ) else (
-        echo [ERROR] Python was not found.
-        echo Install Python or add Python to PATH, then try again.
-        if not "%NO_PAUSE%"=="1" pause
-        exit /b 1
-    )
+    echo [ERROR] Python was not found at:
+    echo %PY_EXE%
+    echo Install Python or update start_erp.bat with the correct Python path.
+    if not "%NO_PAUSE%"=="1" pause
+    exit /b 1
 )
 
 echo [MegaCell ERP] Starting Streamlit server...
+echo [MegaCell ERP] Python  : %PY_LABEL%
 echo [MegaCell ERP] Log file: %LOG_FILE%
 echo.
 
-start "MegaCell ERP Server" /D "%APP_DIR%" cmd /c "%PY_CMD% -m streamlit run app.py --server.address=0.0.0.0 --server.port=%PORT% --server.headless=true > "%LOG_FILE%" 2>&1"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$cmd = '\"' + $env:PY_EXE + '\" -m streamlit run app.py --server.address=0.0.0.0 --server.port=' + $env:PORT + ' --server.headless=true > \"' + $env:LOG_FILE + '\" 2>&1'; Start-Process -FilePath 'cmd.exe' -ArgumentList @('/c', $cmd) -WorkingDirectory $env:APP_DIR -WindowStyle Hidden"
 
 timeout /t 5 /nobreak >nul
 
