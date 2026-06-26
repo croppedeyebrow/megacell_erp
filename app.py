@@ -4,14 +4,14 @@ import streamlit as st
 
 from config import BASE_DIR, DB_PATH
 from core.db import db_mtime, list_tables
-from pages.as_management import render_as_management
-from pages.battery import render_battery_management
-from pages.dashboard import render_dashboard
-from pages.document_converter import render_document_converter
-from pages.inventory import render_current_inventory, render_inventory_history
-from pages.management import render_management_summary
-from pages.materials import render_material_purchases, render_materials_bom
-from pages.sales import render_sales_orders
+from views.as_management import render_as_management
+from views.battery import render_battery_management
+from views.dashboard import render_dashboard
+from views.document_converter import render_document_converter
+from views.inventory import render_current_inventory, render_inventory_history
+from views.management import render_management_summary
+from views.materials import render_material_purchases, render_materials_bom
+from views.sales import render_sales_orders
 from services.sync_service import run_db_sync
 
 
