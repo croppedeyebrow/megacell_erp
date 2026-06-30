@@ -5,7 +5,10 @@ Streamlit 화면 단위 렌더링 함수를 둡니다.
 - dashboard.py: 대시보드
 - sales.py: 영업/수주 화면
 - management.py: 경영 요약
-- inventory.py: 제품 재고, 재고 출납기록
+- inventory.py: 재고관리 화면 호환 import
+- inventory_current.py: 제품 재고 화면
+- inventory_history.py: 재고 출납기록 화면
+- inventory_demand.py: 수요량 분석 화면
 - materials.py: 자재, BOM, 자재 발주
 - attery.py: 배터리 관리
 - s_management.py: AS 관리
