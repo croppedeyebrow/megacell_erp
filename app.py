@@ -8,7 +8,7 @@ from views.as_management import render_as_management
 from views.battery import render_battery_management
 from views.dashboard import render_dashboard
 from views.document_converter import render_document_converter
-from views.inventory import render_current_inventory, render_inventory_history
+from views.inventory import render_current_inventory, render_inventory_demand_analysis, render_inventory_history
 from views.management import render_management_summary
 from views.materials import render_material_purchases, render_materials_bom
 from views.sales import render_sales_orders
@@ -27,7 +27,7 @@ PAGE_GROUPS = {
     "대시보드": ["대시보드"],
     "영업관리": ["수주/미출고 현황", "견적/발주서 변환"],
     "구매-자재관리": ["자재/BOM", "자재 발주"],
-    "재고관리": ["제품 재고", "재고 출납기록", "배터리 관리"],
+    "재고관리": ["제품 재고", "재고 출납기록", "수요량 분석", "배터리 관리"],
     "AS관리": ["AS 이력"],
     "경영관리": ["경영 요약"],
 }
@@ -68,6 +68,8 @@ def route(menu: str, available_tables: list[str]) -> None:
         render_current_inventory()
     elif menu == "재고 출납기록":
         render_inventory_history(available_tables)
+    elif menu == "수요량 분석":
+        render_inventory_demand_analysis()
     elif menu in {"자재/BOM", "자재 현황", "BOM 조회"}:
         render_materials_bom()
     elif menu in {"자재 발주", "발주 필요 품목"}:
