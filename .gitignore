@@ -20,7 +20,9 @@ pypdf/
 *.sqlite
 *.sqlite3
 
-logs/
+logs/*
+!logs/.gitkeep
+!logs/README.md
 *.log
 
 backup/
@@ -52,3 +54,11 @@ cloudflared/
 
 Thumbs.db
 desktop.ini
+
+# Local business data and generated runtime files
+data/*
+!data/.gitkeep
+!data/README.md
+instance/*
+!instance/.gitkeep
+!instance/README.md

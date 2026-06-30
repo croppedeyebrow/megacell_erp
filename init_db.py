@@ -2,22 +2,22 @@ from __future__ import annotations
 
 import sqlite3
 import subprocess
-import sys
 from pathlib import Path
 from typing import Iterable
 
 import pandas as pd
 
-
-BASE_DIR = Path(__file__).resolve().parent
-DB_PATH = BASE_DIR / "megacell.db"
+from config import BASE_DIR, BATTERY_EXPORT_DIR, DATA_DIR, DB_PATH, ensure_runtime_dirs
 
 
 def find_file(pattern: str) -> Path:
-    matches = sorted(BASE_DIR.glob(pattern))
-    if not matches:
-        raise FileNotFoundError(f"파일을 찾을 수 없습니다: {pattern}")
-    return matches[0]
+    search_dirs = [DATA_DIR, BASE_DIR]
+    for directory in search_dirs:
+        matches = sorted(directory.glob(pattern))
+        if matches:
+            return matches[0]
+    searched = ", ".join(str(path) for path in search_dirs)
+    raise FileNotFoundError(f"파일을 찾을 수 없습니다: {pattern} (검색 위치: {searched})")
 
 
 def unique_columns(columns: Iterable[object]) -> list[str]:
@@ -195,7 +195,7 @@ def import_battery(conn: sqlite3.Connection) -> None:
         xls = None
 
     if xls is None:
-        export_dir = BASE_DIR / "battery_exports"
+        export_dir = BATTERY_EXPORT_DIR
         script = BASE_DIR / "export_battery_xlsb.ps1"
         if not script.exists():
             pd.DataFrame(columns=["안내"]).to_sql("배터리재고", conn, if_exists="replace", index=False)
@@ -284,6 +284,7 @@ def import_battery(conn: sqlite3.Connection) -> None:
 
 
 def main() -> None:
+    ensure_runtime_dirs()
     if DB_PATH.exists():
         DB_PATH.unlink()
 
