@@ -130,17 +130,57 @@ def add_latest_inventory_detail(inventory: pd.DataFrame) -> pd.DataFrame:
     return inventory.merge(latest[latest_cols], on="제품정보코드", how="left")
 
 
-def apply_stock_filter(df: pd.DataFrame, stock_filter: str) -> pd.DataFrame:
-    if stock_filter == "현재고 있음" and "현재고" in df.columns:
-        return df[df["현재고"] > 0]
-    if stock_filter == "현재고 없음" and "현재고" in df.columns:
-        return df[df["현재고"] <= 0]
-    if stock_filter == "미출고 있음" and "미출고수량" in df.columns:
-        return df[df["미출고수량"] > 0]
-    return df
+def render_current_inventory() -> None:
+    st.title("제품 재고")
+    st.caption("간편재고관리프로그램의 제품정보 시트를 기준으로 현재 재고 수량을 보여줍니다.")
 
+    inventory = prepare_numeric(
+        get_table("재고"),
+        ["입고수량", "출고수량", "미출고수량", "현재고"],
+    )
+    inventory = add_latest_inventory_detail(inventory)
+    type_column = "유형" if "유형" in inventory.columns else "제품분류"
 
-def render_inventory_result(filtered: pd.DataFrame, file_name: str) -> None:
+    c1, c2, c3, c4 = st.columns([1.1, 1.4, 2.2, 1.4])
+    stock_filter = c1.selectbox("재고 상태", ["전체", "현재고 있음", "현재고 없음", "미출고 있음"])
+    selected_categories = c2.multiselect(
+        "제품분류",
+        safe_unique(inventory, "제품분류"),
+        placeholder="제품분류 선택",
+        key="inventory_category_filter",
+    )
+    selected_products = c3.multiselect(
+        "제품명",
+        safe_unique(inventory, "제품명"),
+        placeholder="제품명 선택",
+        key="inventory_product_filter",
+    )
+    selected_types = c4.multiselect(
+        "유형",
+        safe_unique(inventory, type_column),
+        placeholder="유형 선택",
+        key="inventory_type_filter",
+    )
+
+    keyword = st.text_input("규격/통신카드/최근 세부내역 보조 검색", key="inventory_keyword")
+    filtered = text_filter(
+        inventory,
+        keyword,
+        ["규격", "통신카드", "최근 세부내역", "비고"],
+    )
+    if selected_categories and "제품분류" in filtered.columns:
+        filtered = filtered[filtered["제품분류"].astype(str).isin(selected_categories)]
+    if selected_products and "제품명" in filtered.columns:
+        filtered = filtered[filtered["제품명"].astype(str).isin(selected_products)]
+    if selected_types and type_column in filtered.columns:
+        filtered = filtered[filtered[type_column].astype(str).isin(selected_types)]
+    if stock_filter == "현재고 있음" and "현재고" in filtered.columns:
+        filtered = filtered[filtered["현재고"] > 0]
+    if stock_filter == "현재고 없음" and "현재고" in filtered.columns:
+        filtered = filtered[filtered["현재고"] <= 0]
+    if stock_filter == "미출고 있음" and "미출고수량" in filtered.columns:
+        filtered = filtered[filtered["미출고수량"] > 0]
+
     m1, m2, m3, m4, m5 = st.columns(5)
     m1.metric("현재고", metric_sum(filtered, "현재고"))
     m2.metric("품목 수", f"{len(filtered):,}개")
@@ -150,63 +190,4 @@ def render_inventory_result(filtered: pd.DataFrame, file_name: str) -> None:
 
     st.divider()
     render_current_inventory_table(filtered)
-    download_csv(filtered, file_name)
-
-
-def render_current_inventory() -> None:
-    st.title("제품 재고")
-    st.caption("간편재고관리프로그램의 제품정보 시트를 기준으로 현재 재고 수량을 보여줍니다.")
-
-    inventory = prepare_numeric(
-        get_table("재고"),
-        ["입고수량", "미출고수량", "출고수량", "현재고"],
-    )
-    inventory = add_latest_inventory_detail(inventory)
-
-    stock_filter = st.selectbox("현재고 상태", ["전체", "현재고 있음", "현재고 없음", "미출고 있음"])
-    type_column = "유형" if "유형" in inventory.columns else "제품분류"
-
-    tab_by_name, tab_by_type = st.tabs(["제품명 선택", "유형 선택"])
-
-    with tab_by_name:
-        product_names = safe_unique(inventory, "제품명")
-        selected_products = st.multiselect(
-            "제품명",
-            product_names,
-            placeholder="제품명을 선택하세요",
-            key="inventory_product_filter",
-        )
-        keyword = st.text_input("규격/구분/보관칸/최근 세부내역 보조 검색", key="inventory_name_keyword")
-
-        filtered_by_name = text_filter(
-            inventory,
-            keyword,
-            ["규격", "유형", "통신카드", "최근 세부내역", "비고"],
-        )
-        if selected_products and "제품명" in filtered_by_name.columns:
-            filtered_by_name = filtered_by_name[filtered_by_name["제품명"].astype(str).isin(selected_products)]
-
-        filtered_by_name = apply_stock_filter(filtered_by_name, stock_filter)
-        render_inventory_result(filtered_by_name, "megacell_current_inventory_by_product.csv")
-
-    with tab_by_type:
-        product_types = safe_unique(inventory, type_column)
-        selected_types = st.multiselect(
-            "유형",
-            product_types,
-            placeholder="유형을 선택하세요",
-            key="inventory_type_filter",
-        )
-        type_keyword = st.text_input("제품명/규격/최근 세부내역 보조 검색", key="inventory_type_keyword")
-
-        filtered_by_type = text_filter(
-            inventory,
-            type_keyword,
-            ["제품명", "규격", "통신카드", "최근 세부내역", "비고"],
-        )
-        if selected_types and type_column in filtered_by_type.columns:
-            filtered_by_type = filtered_by_type[filtered_by_type[type_column].astype(str).isin(selected_types)]
-
-        filtered_by_type = apply_stock_filter(filtered_by_type, stock_filter)
-        render_inventory_result(filtered_by_type, "megacell_current_inventory_by_type.csv")
-
+    download_csv(filtered, "megacell_current_inventory.csv")
