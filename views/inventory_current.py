@@ -149,27 +149,30 @@ def render_current_inventory() -> None:
         placeholder="제품분류 선택",
         key="inventory_category_filter",
     )
+
+    option_source = inventory
+    if selected_categories and "제품분류" in option_source.columns:
+        option_source = option_source[option_source["제품분류"].astype(str).isin(selected_categories)]
+
     selected_products = c3.multiselect(
         "제품명",
-        safe_unique(inventory, "제품명"),
+        safe_unique(option_source, "제품명"),
         placeholder="제품명 선택",
         key="inventory_product_filter",
     )
     selected_types = c4.multiselect(
         "유형",
-        safe_unique(inventory, type_column),
+        safe_unique(option_source, type_column),
         placeholder="유형 선택",
         key="inventory_type_filter",
     )
 
     keyword = st.text_input("규격/통신카드/최근 세부내역 보조 검색", key="inventory_keyword")
     filtered = text_filter(
-        inventory,
+        option_source,
         keyword,
         ["규격", "통신카드", "최근 세부내역", "비고"],
     )
-    if selected_categories and "제품분류" in filtered.columns:
-        filtered = filtered[filtered["제품분류"].astype(str).isin(selected_categories)]
     if selected_products and "제품명" in filtered.columns:
         filtered = filtered[filtered["제품명"].astype(str).isin(selected_products)]
     if selected_types and type_column in filtered.columns:
