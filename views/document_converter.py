@@ -5,7 +5,7 @@ from datetime import date
 import pandas as pd
 import streamlit as st
 
-from config import BASE_DIR
+from config import BASE_DIR, DATA_DIR, TEMPLATES_DIR
 from core.db import get_table
 from core.ui import (
     clean_display,
@@ -109,8 +109,13 @@ def render_document_converter() -> None:
 
     with tab_templates:
         st.subheader("포함된 양식 파일")
-        templates = sorted(
-            [path.name for path in BASE_DIR.iterdir() if path.suffix.lower() in {".pdf", ".xlsm"} and "양식" in path.name]
-        )
+        template_dirs = [TEMPLATES_DIR, DATA_DIR, BASE_DIR]
+        template_names = []
+        for directory in template_dirs:
+            if directory.exists():
+                template_names.extend(
+                    path.name for path in directory.iterdir() if path.suffix.lower() in {".pdf", ".xlsm"} and "양식" in path.name
+                )
+        templates = sorted(set(template_names))
         template_df = pd.DataFrame({"파일명": templates})
         table_view(template_df, ["파일명"], height=220)

@@ -6,7 +6,7 @@ from datetime import date
 
 import pandas as pd
 
-from config import BASE_DIR
+from config import BASE_DIR, TEMPLATES_DIR
 
 
 def parse_int(value: object) -> int:
@@ -340,7 +340,11 @@ def safe_filename(text: str) -> str:
 def build_order_workbook_bytes(data: dict[str, object], items: pd.DataFrame) -> bytes:
     import openpyxl
 
-    template_path = BASE_DIR / "주문서,생산지시서 양식 예시파일.xlsm"
+    template_candidates = [
+        TEMPLATES_DIR / "주문서,생산지시서 양식 예시파일.xlsm",
+        BASE_DIR / "주문서,생산지시서 양식 예시파일.xlsm",
+    ]
+    template_path = next((path for path in template_candidates if path.exists()), template_candidates[0])
     if not template_path.exists():
         raise FileNotFoundError(f"주문서 양식 파일을 찾을 수 없습니다: {template_path.name}")
 

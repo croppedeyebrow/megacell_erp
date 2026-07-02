@@ -41,9 +41,6 @@ downloads/
 *.xlsb
 
 !templates/
-!templates/.gitkeep
-!templates/*.xlsx
-!templates/*.xlsm
 
 cloudflared/
 .cloudflared/
@@ -62,3 +59,6 @@ data/*
 instance/*
 !instance/.gitkeep
 !instance/README.md
+templates/*
+!templates/.gitkeep
+!templates/README.md

@@ -32,7 +32,7 @@ megacell_erp/
 ├─ services/              업무 데이터 처리, 변환, 조회 로직
 ├─ views/                 Streamlit 화면 코드
 ├─ utils/                 보조 유틸리티
-├─ templates/             문서/출력 양식
+├─ templates/             문서/출력 양식, Git 제외
 ├─ infra/                 배포, 서버 실행, Cloudflare 운영 자료
 ├─ docs/                  기획/운영/개발 문서
 ├─ data/                  업무 원장 파일, Git 제외
@@ -60,10 +60,12 @@ C:\Users\megaPC\AppData\Local\Python\bin\python.exe -m streamlit run app.py --se
 개발한 내용을 GitHub에 push한 뒤 운영 PC에서 아래 파일을 실행합니다.
 
 ```bat
-deploy.bat
+deploy_bg.bat
 ```
 
-`deploy.bat`은 `git pull`, 기존 ERP 서버 종료, 최신 코드로 서버 재실행을 순서대로 처리합니다.
+`deploy_bg.bat`은 `git pull`, 기존 ERP 서버 종료, 최신 코드 백그라운드 실행을 순서대로 처리합니다. CMD 창을 닫아도 서버가 계속 실행됩니다.
+
+수동으로 서버 로그를 보면서 실행하려면 `deploy.bat`을 사용할 수 있습니다.
 
 자세한 내용은 `docs/DEPLOYMENT.md`를 참고합니다.
 
