@@ -7,7 +7,7 @@ from typing import Iterable
 
 import pandas as pd
 
-from config import ADMIN_EMAILS, BASE_DIR, BATTERY_EXPORT_DIR, DATA_DIR, DB_PATH, ensure_runtime_dirs
+from config import BASE_DIR, BATTERY_EXPORT_DIR, DATA_DIR, DB_PATH, ensure_runtime_dirs
 
 
 def find_file(pattern: str) -> Path:
@@ -300,55 +300,15 @@ def fetch_existing_users() -> pd.DataFrame:
 
 
 def ensure_users_schema(conn: sqlite3.Connection) -> None:
-    conn.execute(
-        """
-        CREATE TABLE IF NOT EXISTS users (
-            email TEXT PRIMARY KEY,
-            name TEXT NOT NULL DEFAULT '',
-            department TEXT NOT NULL DEFAULT '',
-            role TEXT NOT NULL DEFAULT '일반사용자',
-            can_create_documents INTEGER NOT NULL DEFAULT 0,
-            is_active INTEGER NOT NULL DEFAULT 0,
-            password_hash TEXT,
-            password_salt TEXT,
-            password_iterations INTEGER NOT NULL DEFAULT 240000,
-            must_change_password INTEGER NOT NULL DEFAULT 0,
-            created_at TEXT NOT NULL,
-            updated_at TEXT NOT NULL,
-            last_login_at TEXT
-        )
-        """
-    )
-    existing = {row[1] for row in conn.execute("PRAGMA table_info(users)").fetchall()}
-    migrations = {
-        "password_hash": "ALTER TABLE users ADD COLUMN password_hash TEXT",
-        "password_salt": "ALTER TABLE users ADD COLUMN password_salt TEXT",
-        "password_iterations": "ALTER TABLE users ADD COLUMN password_iterations INTEGER NOT NULL DEFAULT 240000",
-        "must_change_password": "ALTER TABLE users ADD COLUMN must_change_password INTEGER NOT NULL DEFAULT 0",
-    }
-    for column, sql in migrations.items():
-        if column not in existing:
-            conn.execute(sql)
+    from repositories.user_repository import ensure_users_schema as ensure_schema
+
+    ensure_schema(conn)
+
 
 def seed_admin_users(conn: sqlite3.Connection) -> None:
-    timestamp = pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S")
-    for email in sorted(ADMIN_EMAILS):
-        conn.execute(
-            """
-            INSERT INTO users (
-                email, name, department, role, can_create_documents,
-                is_active, created_at, updated_at
-            )
-            VALUES (?, ?, '경영지원팀', '관리자', 1, 1, ?, ?)
-            ON CONFLICT(email) DO UPDATE SET
-                role='관리자',
-                can_create_documents=1,
-                is_active=1,
-                updated_at=excluded.updated_at
-            """,
-            (email, email.split("@")[0], timestamp, timestamp),
-        )
+    from repositories.user_repository import seed_admin_users as seed_admins
 
+    seed_admins(conn)
 
 def restore_users(conn: sqlite3.Connection, users: pd.DataFrame) -> None:
     ensure_users_schema(conn)

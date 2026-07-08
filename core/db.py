@@ -3,8 +3,6 @@ from __future__ import annotations
 import sqlite3
 
 import pandas as pd
-import streamlit as st
-
 from config import DB_PATH
 
 
