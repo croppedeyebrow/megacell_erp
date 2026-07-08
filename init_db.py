@@ -284,19 +284,32 @@ def import_battery(conn: sqlite3.Connection) -> None:
 
 
 
-def fetch_existing_users() -> pd.DataFrame:
+PRESERVED_TABLES = [
+    "users",
+    "erp_orders",
+    "erp_order_change_logs",
+    "erp_inventory_movements",
+    "erp_documents",
+    "erp_sync_state",
+]
+
+
+def fetch_existing_operational_tables() -> dict[str, pd.DataFrame]:
+    preserved: dict[str, pd.DataFrame] = {}
     if not DB_PATH.exists():
-        return pd.DataFrame()
+        return preserved
     try:
         with sqlite3.connect(DB_PATH) as conn:
-            exists = conn.execute(
-                "SELECT name FROM sqlite_master WHERE type='table' AND name='users'"
-            ).fetchone()
-            if not exists:
-                return pd.DataFrame()
-            return pd.read_sql("SELECT * FROM users", conn)
+            existing = {
+                row[0]
+                for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
+            }
+            for table_name in PRESERVED_TABLES:
+                if table_name in existing:
+                    preserved[table_name] = pd.read_sql(f'SELECT * FROM "{table_name}"', conn)
     except Exception:
-        return pd.DataFrame()
+        return preserved
+    return preserved
 
 
 def ensure_users_schema(conn: sqlite3.Connection) -> None:
@@ -310,17 +323,24 @@ def seed_admin_users(conn: sqlite3.Connection) -> None:
 
     seed_admins(conn)
 
-def restore_users(conn: sqlite3.Connection, users: pd.DataFrame) -> None:
+def restore_operational_tables(conn: sqlite3.Connection, preserved: dict[str, pd.DataFrame]) -> None:
+    from repositories.erp_schema_repository import ensure_erp_schema, sync_erp_orders_from_source
+
     ensure_users_schema(conn)
-    if not users.empty:
-        users.to_sql("users", conn, if_exists="replace", index=False)
-        ensure_users_schema(conn)
-        print(f"users: {len(users):,}명 복원")
+    ensure_erp_schema(conn)
+    for table_name, df in preserved.items():
+        if not df.empty:
+            df.to_sql(table_name, conn, if_exists="replace", index=False)
+            print(f"{table_name}: {len(df):,}건 복원")
+    ensure_users_schema(conn)
     seed_admin_users(conn)
+    ensure_erp_schema(conn)
+    synced = sync_erp_orders_from_source(conn)
+    print(f"erp_orders: {synced:,}건 동기화")
 
 def main() -> None:
     ensure_runtime_dirs()
-    existing_users = fetch_existing_users()
+    preserved_tables = fetch_existing_operational_tables()
     if DB_PATH.exists():
         DB_PATH.unlink()
 
@@ -331,7 +351,7 @@ def main() -> None:
         import_materials(conn)
         import_purchases(conn)
         import_battery(conn)
-        restore_users(conn, existing_users)
+        restore_operational_tables(conn, preserved_tables)
 
     print(f"\n완료: {DB_PATH}")
 
