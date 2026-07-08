@@ -7,7 +7,7 @@ from services.auth_service import DEPARTMENTS, ROLES, CurrentUser, get_user, get
 
 def render_user_management(current_user: CurrentUser) -> None:
     st.title("사용자 관리")
-    st.caption("Cloudflare Access로 인증된 이메일을 ERP 내부 부서/권한과 연결합니다.")
+    st.caption("ERP 자체 로그인 계정, 부서, 역할, 문서 생성 권한을 관리합니다.")
 
     if not current_user.is_admin:
         st.error("관리자만 접근할 수 있습니다.")
@@ -41,6 +41,10 @@ def render_user_management(current_user: CurrentUser) -> None:
         )
         is_active = c4.checkbox("사용 허용", value=bool(selected_user.is_active) if selected_user else True)
 
+        st.caption("비밀번호를 입력하면 신규 사용자의 초기 비밀번호 또는 기존 사용자의 재설정 비밀번호로 저장됩니다.")
+        new_password = st.text_input("초기/재설정 비밀번호", type="password")
+        force_password_change = st.checkbox("다음 로그인 시 비밀번호 변경 요구", value=selected_user is None)
+
         submitted = st.form_submit_button("저장", width="stretch")
 
     if submitted:
@@ -52,6 +56,8 @@ def render_user_management(current_user: CurrentUser) -> None:
                 role=role,
                 can_create_documents=can_create_documents,
                 is_active=is_active,
+                new_password=new_password,
+                force_password_change=force_password_change,
             )
         except ValueError as exc:
             st.error(str(exc))
@@ -59,7 +65,4 @@ def render_user_management(current_user: CurrentUser) -> None:
             st.success("사용자 정보가 저장되었습니다.")
             st.rerun()
 
-    st.info(
-        "Cloudflare에는 회사 이메일 도메인 또는 허용 이메일만 관리하고, "
-        "부서/역할/문서 생성 권한은 이 화면에서 관리하면 됩니다."
-    )
+    st.info("로그인/로그아웃/회원관리는 이제 ERP 내부에서 처리합니다. 비밀번호는 해시로 저장되며 평문은 저장하지 않습니다.")

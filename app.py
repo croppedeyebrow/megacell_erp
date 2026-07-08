@@ -4,7 +4,7 @@ import streamlit as st
 
 from config import ASSETS_DIR, BASE_DIR, DB_PATH
 from core.db import db_mtime, list_tables
-from services.auth_service import CurrentUser, get_current_user
+from services.auth_service import CurrentUser, change_password, get_current_user, login, logout
 from services.sync_service import run_db_sync
 from views.as_management import render_as_management
 from views.battery import render_battery_management
@@ -123,17 +123,47 @@ def render_db_controls() -> None:
             st.rerun()
 
 
-def render_access_pending(user: CurrentUser | None) -> None:
-    logo_path = ASSETS_DIR / "megacell_logo.png"
-    if logo_path.exists():
-        st.image(str(logo_path), width=460)
-    st.title("사용자 승인이 필요합니다")
-    if user:
-        st.info(f"{user.email} 계정은 ERP에 등록되었지만 아직 사용 승인 전입니다.")
-    else:
-        st.info("로그인 이메일을 확인할 수 없습니다.")
-    st.write("관리자에게 사용자 관리 화면에서 부서와 권한을 지정해 달라고 요청해 주세요.")
-    st.stop()
+def render_login() -> None:
+    left, center, right = st.columns([1, 1.35, 1])
+    with center:
+        logo_path = ASSETS_DIR / "megacell_logo.png"
+        if logo_path.exists():
+            st.image(str(logo_path), use_container_width=True)
+        st.title("ERP 로그인")
+        st.caption("등록된 ERP 계정으로 로그인합니다.")
+        with st.form("login_form"):
+            email = st.text_input("이메일")
+            password = st.text_input("비밀번호", type="password")
+            submitted = st.form_submit_button("로그인", width="stretch")
+        if submitted:
+            ok, error = login(email, password)
+            if ok:
+                st.rerun()
+            else:
+                st.error(error or "로그인에 실패했습니다.")
+
+
+def render_password_change(user: CurrentUser) -> None:
+    left, center, right = st.columns([1, 1.35, 1])
+    with center:
+        st.title("비밀번호 변경")
+        st.caption("초기 비밀번호 또는 재설정 비밀번호로 로그인했습니다.")
+        with st.form("password_change_form"):
+            new_password = st.text_input("새 비밀번호", type="password")
+            confirm_password = st.text_input("새 비밀번호 확인", type="password")
+            submitted = st.form_submit_button("변경", width="stretch")
+        if submitted:
+            if new_password != confirm_password:
+                st.error("새 비밀번호가 일치하지 않습니다.")
+            else:
+                try:
+                    change_password(user.email, new_password, must_change_password=False)
+                except ValueError as exc:
+                    st.error(str(exc))
+                else:
+                    st.success("비밀번호를 변경했습니다. 다시 로그인해 주세요.")
+                    logout()
+                    st.rerun()
 
 
 def route(department: str, menu: str, available_tables: list[str], visible_pages: dict[str, list[str]], user: CurrentUser) -> None:
@@ -188,8 +218,12 @@ def main() -> None:
         st.stop()
 
     user = get_current_user()
-    if user is None or not user.is_active:
-        render_access_pending(user)
+    if user is None:
+        render_login()
+        st.stop()
+    if user.must_change_password:
+        render_password_change(user)
+        st.stop()
 
     visible_pages = get_visible_department_pages(user)
 
@@ -202,6 +236,9 @@ def main() -> None:
     st.sidebar.caption("부서별 업무 포털")
     st.sidebar.caption(f"로그인: {user.email}")
     st.sidebar.caption(f"권한: {user.role}")
+    if st.sidebar.button("로그아웃", width="stretch"):
+        logout()
+        st.rerun()
     st.sidebar.divider()
 
     if "selected_department" not in st.session_state:

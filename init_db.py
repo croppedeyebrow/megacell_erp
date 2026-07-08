@@ -309,13 +309,26 @@ def ensure_users_schema(conn: sqlite3.Connection) -> None:
             role TEXT NOT NULL DEFAULT '일반사용자',
             can_create_documents INTEGER NOT NULL DEFAULT 0,
             is_active INTEGER NOT NULL DEFAULT 0,
+            password_hash TEXT,
+            password_salt TEXT,
+            password_iterations INTEGER NOT NULL DEFAULT 240000,
+            must_change_password INTEGER NOT NULL DEFAULT 0,
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL,
             last_login_at TEXT
         )
         """
     )
-
+    existing = {row[1] for row in conn.execute("PRAGMA table_info(users)").fetchall()}
+    migrations = {
+        "password_hash": "ALTER TABLE users ADD COLUMN password_hash TEXT",
+        "password_salt": "ALTER TABLE users ADD COLUMN password_salt TEXT",
+        "password_iterations": "ALTER TABLE users ADD COLUMN password_iterations INTEGER NOT NULL DEFAULT 240000",
+        "must_change_password": "ALTER TABLE users ADD COLUMN must_change_password INTEGER NOT NULL DEFAULT 0",
+    }
+    for column, sql in migrations.items():
+        if column not in existing:
+            conn.execute(sql)
 
 def seed_admin_users(conn: sqlite3.Connection) -> None:
     timestamp = pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S")
