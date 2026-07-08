@@ -7,7 +7,7 @@ from typing import Iterable
 
 import pandas as pd
 
-from config import BASE_DIR, BATTERY_EXPORT_DIR, DATA_DIR, DB_PATH, ensure_runtime_dirs
+from config import ADMIN_EMAILS, BASE_DIR, BATTERY_EXPORT_DIR, DATA_DIR, DB_PATH, ensure_runtime_dirs
 
 
 def find_file(pattern: str) -> Path:
@@ -283,8 +283,71 @@ def import_battery(conn: sqlite3.Connection) -> None:
     write_table(conn, "배터리", df)
 
 
+
+def fetch_existing_users() -> pd.DataFrame:
+    if not DB_PATH.exists():
+        return pd.DataFrame()
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            exists = conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name='users'"
+            ).fetchone()
+            if not exists:
+                return pd.DataFrame()
+            return pd.read_sql("SELECT * FROM users", conn)
+    except Exception:
+        return pd.DataFrame()
+
+
+def ensure_users_schema(conn: sqlite3.Connection) -> None:
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS users (
+            email TEXT PRIMARY KEY,
+            name TEXT NOT NULL DEFAULT '',
+            department TEXT NOT NULL DEFAULT '',
+            role TEXT NOT NULL DEFAULT '일반사용자',
+            can_create_documents INTEGER NOT NULL DEFAULT 0,
+            is_active INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            last_login_at TEXT
+        )
+        """
+    )
+
+
+def seed_admin_users(conn: sqlite3.Connection) -> None:
+    timestamp = pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S")
+    for email in sorted(ADMIN_EMAILS):
+        conn.execute(
+            """
+            INSERT INTO users (
+                email, name, department, role, can_create_documents,
+                is_active, created_at, updated_at
+            )
+            VALUES (?, ?, '경영지원팀', '관리자', 1, 1, ?, ?)
+            ON CONFLICT(email) DO UPDATE SET
+                role='관리자',
+                can_create_documents=1,
+                is_active=1,
+                updated_at=excluded.updated_at
+            """,
+            (email, email.split("@")[0], timestamp, timestamp),
+        )
+
+
+def restore_users(conn: sqlite3.Connection, users: pd.DataFrame) -> None:
+    ensure_users_schema(conn)
+    if not users.empty:
+        users.to_sql("users", conn, if_exists="replace", index=False)
+        ensure_users_schema(conn)
+        print(f"users: {len(users):,}명 복원")
+    seed_admin_users(conn)
+
 def main() -> None:
     ensure_runtime_dirs()
+    existing_users = fetch_existing_users()
     if DB_PATH.exists():
         DB_PATH.unlink()
 
@@ -295,6 +358,7 @@ def main() -> None:
         import_materials(conn)
         import_purchases(conn)
         import_battery(conn)
+        restore_users(conn, existing_users)
 
     print(f"\n완료: {DB_PATH}")
 

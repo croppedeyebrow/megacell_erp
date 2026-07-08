@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import streamlit as st
 
-from config import ADMIN_EMAILS, ASSETS_DIR, BASE_DIR, DB_PATH
+from config import ASSETS_DIR, BASE_DIR, DB_PATH
 from core.db import db_mtime, list_tables
+from services.auth_service import CurrentUser, get_current_user
 from services.sync_service import run_db_sync
 from views.as_management import render_as_management
 from views.battery import render_battery_management
@@ -14,6 +15,7 @@ from views.landing import render_department_landing, render_planned_page
 from views.management import render_management_summary
 from views.materials import render_material_purchases, render_materials_bom
 from views.sales import render_sales_orders
+from views.user_management import render_user_management
 
 
 st.set_page_config(
@@ -59,6 +61,7 @@ DEPARTMENT_PAGES = {
         "업무 대시보드",
         "경영 요약",
         "수요량 분석",
+        "사용자 관리",
     ],
 }
 
@@ -77,35 +80,18 @@ PLANNED_PAGE_DESCRIPTIONS = {
 }
 
 
-def get_login_email() -> str:
-    """Read the authenticated email forwarded by Cloudflare Access."""
-    headers: dict[str, str] = {}
-    try:
-        headers = dict(st.context.headers)
-    except Exception:
-        headers = {}
+def get_visible_department_pages(user: CurrentUser) -> dict[str, list[str]]:
+    if user.is_admin:
+        return DEPARTMENT_PAGES
 
-    normalized_headers = {str(key).lower(): str(value).strip() for key, value in headers.items()}
-    for key in [
-        "cf-access-authenticated-user-email",
-        "x-forwarded-email",
-        "x-authenticated-user-email",
-    ]:
-        value = normalized_headers.get(key, "")
-        if value:
-            return value.lower()
-    return ""
-
-
-def is_admin_user(email: str) -> bool:
-    return bool(email and email.lower() in ADMIN_EMAILS)
-
-
-def get_visible_department_pages(is_admin: bool) -> dict[str, list[str]]:
-    pages = dict(DEPARTMENT_PAGES)
-    if not is_admin:
-        pages.pop("전체 현황", None)
-    return pages
+    visible = {"홈": DEPARTMENT_PAGES["홈"]}
+    if user.department in DEPARTMENT_PAGES:
+        pages = list(DEPARTMENT_PAGES[user.department])
+        pages = [page for page in pages if page != "시스템 관리"]
+        if not user.can_create_documents:
+            pages = [page for page in pages if page not in {"문서 출력", "견적서/주문서 변환"}]
+        visible[user.department] = pages
+    return visible
 
 
 def set_navigation(department: str, page: str | None = None) -> None:
@@ -137,10 +123,23 @@ def render_db_controls() -> None:
             st.rerun()
 
 
-def route(department: str, menu: str, available_tables: list[str], visible_pages: dict[str, list[str]]) -> None:
+def render_access_pending(user: CurrentUser | None) -> None:
+    logo_path = ASSETS_DIR / "megacell_logo.png"
+    if logo_path.exists():
+        st.image(str(logo_path), width=460)
+    st.title("사용자 승인이 필요합니다")
+    if user:
+        st.info(f"{user.email} 계정은 ERP에 등록되었지만 아직 사용 승인 전입니다.")
+    else:
+        st.info("로그인 이메일을 확인할 수 없습니다.")
+    st.write("관리자에게 사용자 관리 화면에서 부서와 권한을 지정해 달라고 요청해 주세요.")
+    st.stop()
+
+
+def route(department: str, menu: str, available_tables: list[str], visible_pages: dict[str, list[str]], user: CurrentUser) -> None:
     if department == "홈" or menu == "랜딩페이지":
         render_department_landing(visible_pages, set_navigation)
-    elif menu in {"업무 대시보드"}:
+    elif menu == "업무 대시보드":
         render_dashboard()
     elif menu in {"수주/견적 현황", "미출고 현황"}:
         render_sales_orders()
@@ -161,8 +160,16 @@ def route(department: str, menu: str, available_tables: list[str], visible_pages
     elif menu == "AS 이력":
         render_as_management()
     elif menu in {"문서 출력", "견적서/주문서 변환"}:
+        if not (user.is_admin or user.can_create_documents):
+            st.error("문서 생성 권한이 필요합니다.")
+            st.stop()
         render_document_converter()
+    elif menu == "사용자 관리":
+        render_user_management(user)
     elif menu == "시스템 관리":
+        if not user.is_admin:
+            st.error("관리자만 접근할 수 있습니다.")
+            st.stop()
         st.title("시스템 관리")
         render_db_controls()
         render_planned_page(menu, department, PLANNED_PAGE_DESCRIPTIONS[menu])
@@ -180,9 +187,11 @@ def main() -> None:
         st.info("먼저 같은 폴더에서 `python init_db.py`를 실행해 주세요.")
         st.stop()
 
-    login_email = get_login_email()
-    is_admin = is_admin_user(login_email)
-    visible_pages = get_visible_department_pages(is_admin)
+    user = get_current_user()
+    if user is None or not user.is_active:
+        render_access_pending(user)
+
+    visible_pages = get_visible_department_pages(user)
 
     logo_path = ASSETS_DIR / "megacell_logo.png"
     if logo_path.exists():
@@ -191,10 +200,8 @@ def main() -> None:
         st.sidebar.title("메가셀 ERP")
 
     st.sidebar.caption("부서별 업무 포털")
-    if login_email:
-        st.sidebar.caption(f"로그인: {login_email}")
-    if is_admin:
-        st.sidebar.caption("권한: 관리자")
+    st.sidebar.caption(f"로그인: {user.email}")
+    st.sidebar.caption(f"권한: {user.role}")
     st.sidebar.divider()
 
     if "selected_department" not in st.session_state:
@@ -230,7 +237,7 @@ def main() -> None:
     else:
         st.session_state["selected_page"] = menu
 
-    if department != "홈":
+    if department != "홈" and user.is_admin:
         st.sidebar.divider()
         render_db_controls()
 
@@ -240,7 +247,7 @@ def main() -> None:
     if missing_tables and department != "홈":
         st.warning("DB에 아직 없는 테이블: " + ", ".join(missing_tables))
 
-    route(department, menu, available_tables, visible_pages)
+    route(department, menu, available_tables, visible_pages, user)
 
 
 if __name__ == "__main__":
