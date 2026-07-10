@@ -32,9 +32,12 @@ DEPARTMENT_PAGES = {
         "재고 현황",
         "입출고 기록",
         "구매/발주 관리",
-        "문서 출력",
-        "거래처/정산 자료",
-        "시스템 관리",
+        "전기공사 입찰/관리",
+        "정산/청구 관리",
+        "매입/매출 집계",
+        "거래처/계약 자료",
+        "문서 발행",
+        "사내 자료/양식",
     ],
     "기술영업팀": [
         "수주/견적 현황",
@@ -62,14 +65,19 @@ DEPARTMENT_PAGES = {
         "경영 요약",
         "수요량 분석",
         "사용자 관리",
+        "시스템 관리",
     ],
 }
 
 
 PLANNED_PAGE_DESCRIPTIONS = {
-    "거래처/정산 자료": "거래처별 문서, 주문, 정산 기준 자료를 한 곳에서 조회하는 화면입니다.",
+    "정산/청구 관리": "청구 예정, 입금 확인, 계산서 발행 상태를 관리하는 화면입니다.",
+    "매입/매출 집계": "매입/매출 실적과 정산 기준 금액을 기간별로 확인하는 화면입니다.",
+    "거래처/계약 자료": "거래처별 계약, 주문, 정산 기준 자료를 한 곳에서 조회하는 화면입니다.",
+    "사내 자료/양식": "사내 공통 양식과 업무 문서를 관리하는 화면입니다.",
     "시스템 관리": "데이터 적재, 권한, 실행 상태를 관리하는 운영자용 화면입니다.",
     "고객/거래처 조회": "고객사, 담당자, 거래 이력, 관련 문서를 연결해 조회하는 화면입니다.",
+    "전기공사 입찰/관리": "전기 공사 입찰 공고, 현장 설명, 견적, 투찰, 낙찰 후 진행 상태를 관리하는 화면입니다.",
     "출고 요청": "영업에서 출고가 필요한 건을 생산/경영지원팀으로 넘기는 요청 화면입니다.",
     "생산 요청 현황": "영업/경영지원에서 넘어온 생산 요청을 접수 상태별로 보는 화면입니다.",
     "생산 예정/진행": "생산 예정, 조립 진행, 검수 대기 상태를 관리하는 화면입니다.",
@@ -89,7 +97,7 @@ def get_visible_department_pages(user: CurrentUser) -> dict[str, list[str]]:
         pages = list(DEPARTMENT_PAGES[user.department])
         pages = [page for page in pages if page != "시스템 관리"]
         if not user.can_create_documents:
-            pages = [page for page in pages if page not in {"문서 출력", "견적서/주문서 변환"}]
+            pages = [page for page in pages if page not in {"문서 발행", "문서 출력", "견적서/주문서 변환"}]
         visible[user.department] = pages
     return visible
 
@@ -189,7 +197,7 @@ def route(department: str, menu: str, available_tables: list[str], visible_pages
         render_battery_management()
     elif menu == "AS 이력":
         render_as_management()
-    elif menu in {"문서 출력", "견적서/주문서 변환"}:
+    elif menu in {"문서 발행", "문서 출력", "견적서/주문서 변환"}:
         if not (user.is_admin or user.can_create_documents):
             st.error("문서 생성 권한이 필요합니다.")
             st.stop()
