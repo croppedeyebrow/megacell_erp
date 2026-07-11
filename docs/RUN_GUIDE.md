@@ -1,73 +1,58 @@
 # MegaCell ERP 실행 가이드
 
-## 1. 실행
-
-CMD 또는 PowerShell에서 아래 명령을 실행합니다.
+## 1. Front + Backend 한 번에 (권장)
 
 ```bat
 cd /d C:\Users\megaPC\Desktop\megacell_erp
-C:\Users\megaPC\AppData\Local\Python\bin\python.exe -m streamlit run app.py
+dev.bat
 ```
 
-`.streamlit/config.toml`에 아래 설정이 들어 있으므로 실행 명령을 길게 쓰지 않아도 됩니다.
+- API: http://localhost:8000/docs
+- Front: http://localhost:5173
 
-```toml
-[server]
-address = "0.0.0.0"
-port = 8501
-headless = true
+종료:
+
+```bat
+stop_dev.bat
 ```
 
-## 2. 접속
+## 2. FastAPI만
 
-서버 PC에서 접속:
-
-```text
-http://localhost:8501
+```bat
+cd /d C:\Users\megaPC\Desktop\megacell_erp
+run_server.bat
 ```
 
-같은 사내 네트워크의 직원 PC에서 접속:
+또는:
 
-```text
-http://서버PC_IP:8501
+```bat
+cd /d C:\Users\megaPC\Desktop\megacell_erp\ERP_Backend
+python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-예시:
+접속: http://localhost:8000/docs  
+종료: `Ctrl + C` 또는 `stop_server.bat`
 
-```text
-http://172.30.1.71:8501
+## 3. React Front만
+
+```bat
+cd /d C:\Users\megaPC\Desktop\megacell_erp\ERP_Front
+npm run dev
 ```
 
-## 3. 종료
+접속: http://localhost:5173
 
-Streamlit 실행 창에서 `Ctrl + C`를 누릅니다.
+## 4. Legacy Streamlit (전환용)
 
-## 4. 서버 상태 확인
-
-CMD 또는 PowerShell에서 아래 명령으로 8501 포트 사용 여부를 확인할 수 있습니다.
-
-```powershell
-Get-NetTCPConnection -LocalPort 8501 -State Listen -ErrorAction SilentlyContinue
+```bat
+cd /d C:\Users\megaPC\Desktop\megacell_erp
+run_legacy.bat
 ```
 
-결과가 없으면 서버가 꺼진 상태입니다.
+접속: http://localhost:8501  
+신규 업무 쓰기는 FastAPI로만 수행합니다.
 
-## 5. 외부 접속 방향
+## 5. 외부 접속
 
-공유기 포트를 직접 여는 방식은 권장하지 않습니다.
-
-외부 직원 조회는 다음 구조를 목표로 합니다.
-
-```text
-Cloudflare Access 로그인
-  -> Cloudflare Tunnel
-  -> 사내 ERP 서버
-  -> Streamlit ERP
-```
-
-## 6. 주의사항
-
-- ERP 서버 PC가 켜져 있어야 접속할 수 있습니다.
-- 서버 실행 창을 닫거나 `Ctrl + C`를 누르면 직원 접속도 종료됩니다.
-- 엑셀 원본, DB, 고객 PDF는 Git에 올리지 않습니다.
-- 외부 접속을 열기 전에는 권한 구조를 먼저 적용합니다.
+Cloudflare Tunnel/Access는 점진적으로 FastAPI(+정적 Front)를 바라보도록 전환합니다.  
+공유기 포트 직접 개방은 권장하지 않습니다.

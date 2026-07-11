@@ -1,2 +1,2 @@
 @echo off
-call "%~dp0infra\scripts\stop_server.bat" %*
+call "%~dp0ERP_Infra\scripts\stop_server.bat" %*

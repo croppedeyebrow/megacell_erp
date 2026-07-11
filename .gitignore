@@ -56,9 +56,22 @@ desktop.ini
 data/*
 !data/.gitkeep
 !data/README.md
-instance/*
+instance/
 !instance/.gitkeep
 !instance/README.md
+ERP_Backend/instance/
+!ERP_Backend/instance/.gitkeep
+!ERP_Backend/instance/README.md
 templates/*
 !templates/.gitkeep
 !templates/README.md
+
+# Node / frontend build
+node_modules/
+dist/
+ERP_Front/dist/
+
+# Python tooling
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
