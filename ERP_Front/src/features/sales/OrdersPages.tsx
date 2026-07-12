@@ -1,5 +1,6 @@
-import { useMemo, useState, type FormEvent } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import { Page } from '@/components/layout/AppShell'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { DataTable } from '@/components/data/DataTable'
@@ -16,10 +17,9 @@ import {
   Select,
   useToast,
 } from '@/components/ui'
-import { MOCK_ORDERS } from '@/mocks/data'
-import { useClientList } from '@/hooks/useClientList'
 import { formatCurrency, formatDate, formatQuantity } from '@/lib/format'
-import { useAuth } from '@/auth/AuthContext'
+import { getErrorMessage, useAuth } from '@/auth/AuthContext'
+import { salesApi, type SalesOrderDto } from '@/lib/api/sales'
 
 const STATUS_FILTER = {
   id: 'status',
@@ -34,35 +34,100 @@ const STATUS_FILTER = {
   ],
 }
 
+type OrderRow = {
+  id: string
+  orderNo: string
+  customer: string
+  product: string
+  quantity: number
+  amount: number
+  dueDate: string
+  status: string
+  owner: string
+}
+
+function toRow(dto: SalesOrderDto): OrderRow {
+  return {
+    id: dto.id,
+    orderNo: dto.order_no,
+    customer: dto.customer_name,
+    product: dto.product_name,
+    quantity: dto.quantity ?? 0,
+    amount: dto.order_amount ?? 0,
+    dueDate: dto.due_date ?? '',
+    status: dto.status,
+    owner: dto.owner_name ?? '—',
+  }
+}
+
 export function OrdersPage() {
   const navigate = useNavigate()
   const { hasPermission } = useAuth()
-  const list = useClientList(
-    MOCK_ORDERS,
-    [
-      (r) => r.orderNo,
-      (r) => r.customer,
-      (r) => r.product,
-      (r) => r.owner,
-    ],
-    { status: (r) => r.status },
+  const { toast } = useToast()
+  const [params] = useSearchParams()
+  const [importing, setImporting] = useState(false)
+
+  const page = Number(params.get('page') ?? '1') || 1
+  const pageSize = Number(params.get('pageSize') ?? '20') || 20
+  const q = params.get('q') ?? ''
+  const status = params.get('f.status') ?? ''
+
+  const query = useQuery({
+    queryKey: ['sales-orders', page, pageSize, q, status],
+    queryFn: () =>
+      salesApi.list({
+        page,
+        pageSize,
+        q: q || undefined,
+        status: status || undefined,
+      }),
+  })
+
+  const rows = useMemo(
+    () => (query.data?.items ?? []).map(toRow),
+    [query.data],
   )
+
+  const onImport = async () => {
+    if (!hasPermission('admin.manage')) return
+    setImporting(true)
+    try {
+      const result = await salesApi.importLegacySqlite()
+      toast(result.message, result.fail_count ? 'warning' : 'success')
+      await query.refetch()
+    } catch (err) {
+      toast(getErrorMessage(err, '이관에 실패했습니다.'), 'danger')
+    } finally {
+      setImporting(false)
+    }
+  }
 
   return (
     <Page>
       <PageHeader
         title="수주"
-        description="수주 목록을 검색·필터하고 상세로 이동합니다."
+        description="신규 DB(sales_orders) 기준 목록입니다. 레거시 SQLite는 이관 후 반영됩니다."
         breadcrumbs={[
           { label: '홈', to: '/' },
           { label: '영업' },
           { label: '수주' },
         ]}
-        actions={
-          hasPermission('sales.edit')
-            ? [{ label: '수주 등록', variant: 'primary', to: '/sales/orders/new' }]
-            : undefined
-        }
+        actions={[
+          ...(hasPermission('admin.manage')
+            ? [
+                {
+                  label: importing ? '이관 중…' : '레거시 DB 이관',
+                  variant: 'secondary' as const,
+                  onClick: () => void onImport(),
+                  disabled: importing,
+                  loading: importing,
+                },
+              ]
+            : []),
+          ...(hasPermission('sales.edit')
+            ? [{ label: '수주 등록', variant: 'primary' as const, to: '/sales/orders/new' }]
+            : []),
+        ]}
       />
       <DataTable
         columns={[
@@ -95,23 +160,19 @@ export function OrdersPage() {
           },
           { id: 'owner', header: '담당자', accessor: (r) => r.owner },
         ]}
-        rows={list.items}
-        total={list.total}
+        rows={rows}
+        total={query.data?.total ?? 0}
         rowKey={(r) => r.id}
+        loading={query.isLoading}
+        error={query.error ? getErrorMessage(query.error, '목록을 불러오지 못했습니다.') : null}
+        onRetry={() => void query.refetch()}
         filters={[STATUS_FILTER]}
-        filteredEmpty={list.filteredEmpty}
+        filteredEmpty={!query.isLoading && (query.data?.total ?? 0) === 0 && (!!q || !!status)}
         getRowHref={(r) => `/sales/orders/${r.id}`}
         emptyTitle="수주가 없습니다"
-        emptyDescription="첫 수주를 등록하면 목록에 표시됩니다."
+        emptyDescription="레거시 megacell.db를 이관하거나 수주를 등록하세요."
         emptyActionLabel={hasPermission('sales.edit') ? '수주 등록' : undefined}
         onEmptyAction={() => navigate('/sales/orders/new')}
-        toolbarExtra={
-          hasPermission('report.export') ? (
-            <Button variant="secondary" size="sm">
-              내보내기
-            </Button>
-          ) : null
-        }
       />
     </Page>
   )
@@ -125,16 +186,32 @@ export function OrderDetailPage() {
   const [tab, setTab] = useState('overview')
   const [cancelOpen, setCancelOpen] = useState(false)
   const [reason, setReason] = useState('')
-  const order = useMemo(
-    () => MOCK_ORDERS.find((o) => o.id === id) ?? MOCK_ORDERS[0],
-    [id],
-  )
 
-  if (!order) {
+  const query = useQuery({
+    queryKey: ['sales-order', id],
+    queryFn: () => salesApi.get(id!),
+    enabled: !!id,
+  })
+
+  const order = query.data
+
+  if (query.isLoading) {
+    return (
+      <Page>
+        <Alert tone="info" title="불러오는 중">
+          수주 상세를 조회하고 있습니다.
+        </Alert>
+      </Page>
+    )
+  }
+
+  if (query.error || !order) {
     return (
       <Page>
         <Alert tone="danger" title="수주를 찾을 수 없습니다">
-          요청한 수주가 없거나 권한이 없습니다.
+          {query.error
+            ? getErrorMessage(query.error, '요청한 수주가 없거나 권한이 없습니다.')
+            : '요청한 수주가 없거나 권한이 없습니다.'}
         </Alert>
       </Page>
     )
@@ -143,27 +220,30 @@ export function OrderDetailPage() {
   return (
     <Page>
       <PageHeader
-        title={order.orderNo}
+        title={order.order_no}
         status={<StatusBadge code={order.status} />}
         breadcrumbs={[
           { label: '홈', to: '/' },
           { label: '영업' },
           { label: '수주', to: '/sales/orders' },
-          { label: order.orderNo },
+          { label: order.order_no },
         ]}
         meta={
           <>
             <span>
-              거래처 <strong>{order.customer}</strong>
+              거래처 <strong>{order.customer_name}</strong>
             </span>
             <span>
-              담당자 <strong>{order.owner}</strong>
+              담당자 <strong>{order.owner_name ?? '—'}</strong>
             </span>
             <span>
-              납기 <strong>{formatDate(order.dueDate)}</strong>
+              납기 <strong>{formatDate(order.due_date)}</strong>
             </span>
             <span>
-              금액 <strong>{formatCurrency(order.amount, { vatIncluded: false })}</strong>
+              금액{' '}
+              <strong>
+                {formatCurrency(order.order_amount, { vatIncluded: false })}
+              </strong>
             </span>
           </>
         }
@@ -216,17 +296,20 @@ export function OrderDetailPage() {
         <Panel>
           <DescriptionList
             items={[
-              { label: '수주번호', value: order.orderNo },
-              { label: '거래처', value: order.customer },
-              { label: '품목', value: order.product },
-              { label: '수량', value: formatQuantity(order.quantity, 'EA') },
+              { label: '수주번호', value: order.order_no },
+              { label: '거래처', value: order.customer_name },
+              { label: '품목', value: order.product_name },
+              {
+                label: '수량',
+                value: formatQuantity(order.quantity, order.unit ?? 'EA'),
+              },
               {
                 label: '금액',
-                value: formatCurrency(order.amount, { vatIncluded: false }),
+                value: formatCurrency(order.order_amount, { vatIncluded: false }),
               },
-              { label: '납기', value: formatDate(order.dueDate) },
+              { label: '납기', value: formatDate(order.due_date) },
               { label: '상태', value: <StatusBadge code={order.status} /> },
-              { label: '담당자', value: order.owner },
+              { label: '담당자', value: order.owner_name ?? '—' },
             ]}
           />
         </Panel>
@@ -239,18 +322,16 @@ export function OrderDetailPage() {
               <tr>
                 <th>품목</th>
                 <th className="cell-right">수량</th>
-                <th className="cell-right">단가</th>
                 <th className="cell-right">금액</th>
               </tr>
             </thead>
             <tbody>
               <tr>
-                <td>{order.product}</td>
-                <td className="cell-right">{formatQuantity(order.quantity, 'EA')}</td>
+                <td>{order.product_name}</td>
                 <td className="cell-right">
-                  {formatCurrency(Math.round(order.amount / order.quantity))}
+                  {formatQuantity(order.quantity, order.unit ?? 'EA')}
                 </td>
-                <td className="cell-right">{formatCurrency(order.amount)}</td>
+                <td className="cell-right">{formatCurrency(order.order_amount)}</td>
               </tr>
             </tbody>
           </table>
@@ -261,10 +342,10 @@ export function OrderDetailPage() {
         <Panel title="연결 업무">
           <ul className="list-plain">
             <li>
-              <Link to="/production/requests">생산 요청 PR-2026-0088</Link>
+              <Link to="/production/requests">생산 요청</Link>
             </li>
             <li>
-              <Link to="/inventory/shipments">출고 SH-2026-0051</Link>
+              <Link to="/inventory/shipments">출고</Link>
             </li>
           </ul>
         </Panel>
@@ -278,19 +359,9 @@ export function OrderDetailPage() {
 
       {tab === 'history' && (
         <Panel title="변경 이력">
-          <ul className="list-plain">
-            <li>
-              <div>
-                <strong>상태</strong> 초안 → 확정
-                <div style={{ fontSize: 12, color: 'var(--color-neutral-500)' }}>
-                  사유: 고객 발주 확정 · {order.owner}
-                </div>
-              </div>
-              <span style={{ fontSize: 12, color: 'var(--color-neutral-500)' }}>
-                2026-07-09 14:20
-              </span>
-            </li>
-          </ul>
+          <p style={{ color: 'var(--color-neutral-500)' }}>
+            변경 이력 API 연동은 다음 단계에서 제공합니다.
+          </p>
         </Panel>
       )}
 
@@ -305,14 +376,14 @@ export function OrderDetailPage() {
             return
           }
           setCancelOpen(false)
-          toast(`${order.orderNo} 수주가 취소되었습니다.`, 'success')
+          toast('수주 취소 API는 다음 단계에서 연결됩니다.', 'warning')
           navigate('/sales/orders')
         }}
       >
         <p>
-          <strong>{order.orderNo}</strong> ({order.customer}) 수주를 취소합니다.
+          <strong>{order.order_no}</strong> ({order.customer_name}) 수주를 취소합니다.
         </p>
-        <p>취소 후 새 생산·출고 요청을 만들 수 없습니다. 이 작업은 되돌릴 수 없습니다.</p>
+        <p>취소 후 새 생산·출고 요청을 만들 수 없습니다.</p>
         <TextArea
           label="취소 사유"
           required
@@ -330,15 +401,30 @@ export function OrderFormPage() {
   const isEdit = Boolean(id && id !== 'new')
   const navigate = useNavigate()
   const { toast } = useToast()
-  const existing = MOCK_ORDERS.find((o) => o.id === id)
-  const [customer, setCustomer] = useState(existing?.customer ?? '')
-  const [product, setProduct] = useState(existing?.product ?? '')
-  const [quantity, setQuantity] = useState(String(existing?.quantity ?? ''))
-  const [amount, setAmount] = useState(String(existing?.amount ?? ''))
-  const [dueDate, setDueDate] = useState(existing?.dueDate ?? '')
+  const [customer, setCustomer] = useState('')
+  const [product, setProduct] = useState('')
+  const [quantity, setQuantity] = useState('')
+  const [amount, setAmount] = useState('')
+  const [dueDate, setDueDate] = useState('')
   const [memo, setMemo] = useState('')
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(false)
+
+  const detail = useQuery({
+    queryKey: ['sales-order', id],
+    queryFn: () => salesApi.get(id!),
+    enabled: isEdit && !!id,
+  })
+
+  useEffect(() => {
+    if (!detail.data) return
+    setCustomer(detail.data.customer_name)
+    setProduct(detail.data.product_name)
+    setQuantity(String(detail.data.quantity ?? ''))
+    setAmount(String(detail.data.order_amount ?? ''))
+    setDueDate(detail.data.due_date ?? '')
+    setMemo(detail.data.memo ?? '')
+  }, [detail.data])
 
   const validate = () => {
     const next: Record<string, string> = {}
@@ -358,10 +444,15 @@ export function OrderFormPage() {
       return
     }
     setLoading(true)
-    await new Promise((r) => setTimeout(r, 500))
+    await new Promise((r) => setTimeout(r, 300))
     setLoading(false)
-    toast(draft ? '임시 저장되었습니다.' : '수주가 저장되었습니다.', 'success')
-    navigate(isEdit ? `/sales/orders/${id}` : '/sales/orders')
+    toast(
+      draft
+        ? '임시 저장 API는 다음 단계에서 연결됩니다.'
+        : '수주 저장 API는 다음 단계에서 연결됩니다.',
+      'warning',
+    )
+    navigate('/sales/orders')
   }
 
   return (
@@ -380,11 +471,7 @@ export function OrderFormPage() {
           표시된 필드를 수정한 뒤 다시 저장하세요.
         </Alert>
       )}
-      <form
-        className="panel"
-        onSubmit={(e) => onSubmit(e, false)}
-        style={{ marginTop: 16 }}
-      >
+      <form className="panel" onSubmit={(e) => onSubmit(e, false)} style={{ marginTop: 16 }}>
         <h2 className="section-title">기본 정보</h2>
         <div className="form-grid">
           <TextField
@@ -435,11 +522,7 @@ export function OrderFormPage() {
           />
         </div>
         <div style={{ marginTop: 24 }}>
-          <TextArea
-            label="메모"
-            value={memo}
-            onChange={(e) => setMemo(e.target.value)}
-          />
+          <TextArea label="메모" value={memo} onChange={(e) => setMemo(e.target.value)} />
         </div>
         <div className="form-actions">
           <Button variant="ghost" type="button" onClick={() => navigate(-1)}>

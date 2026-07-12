@@ -20,6 +20,7 @@ MegaCell ERP의 기획·설계·운영 문서를 보관합니다.
 | `DEPLOYMENT.md` | 운영 배포·Cloudflare |
 | `GIT_WORKFLOW.md` | Git 작업 흐름 |
 | `DB_STRUCTURE.md` | 레거시/DB 구조 참고 |
+| `DATA_MIGRATION.md` | 레거시 SQLite → 신규 DB 이관 |
 
 ## 보관 (archive)
 

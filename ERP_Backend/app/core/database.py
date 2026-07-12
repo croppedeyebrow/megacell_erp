@@ -39,6 +39,7 @@ def get_db() -> Generator[Session, None, None]:
 
 def init_db() -> None:
     from app.domains.identity import models as _identity_models  # noqa: F401
+    from app.domains.sales import models as _sales_models  # noqa: F401
 
     if settings.database_url.startswith("sqlite"):
         db_path = Path(settings.database_url.replace("sqlite:///", ""))

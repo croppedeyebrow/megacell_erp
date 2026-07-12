@@ -30,6 +30,17 @@ dev.bat
 
 첫 가입 사용자는 관리자(`admin`) 권한이 부여됩니다.
 
+### 레거시 SQLite 수주 이관
+
+운영 PC의 `megacell.db`를 `ERP_Backend/legacy/streamlit/instance/`에 복사한 뒤:
+
+```bat
+cd ERP_Backend
+import_legacy.bat
+```
+
+상세: [`docs/DATA_MIGRATION.md`](docs/DATA_MIGRATION.md)
+
 종료:
 
 ```bat
