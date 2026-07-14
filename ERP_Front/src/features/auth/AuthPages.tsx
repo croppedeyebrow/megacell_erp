@@ -4,6 +4,7 @@ import { getErrorMessage, useAuth } from '@/auth/AuthContext'
 import { Alert, Button, TextField, useToast } from '@/components/ui'
 import { Page } from '@/components/layout/AppShell'
 import { PageHeader } from '@/components/layout/PageHeader'
+import logo from '@/assets/Logo_MEGACELL_shadow_A_En.png'
 
 function AuthShell({
   title,
@@ -18,8 +19,7 @@ function AuthShell({
     <div className="auth-layout">
       <div className="auth-card">
         <div className="auth-card__brand">
-          <span className="topbar__logo">MC</span>
-          <strong>MegaCell ERP</strong>
+          <img src={logo} alt="MegaCell Co., Ltd." className="auth-card__logo-img" />
         </div>
         <h1>{title}</h1>
         <p>{description}</p>

@@ -11,6 +11,8 @@ import {
   SignupPage,
 } from '@/features/auth/AuthPages'
 import { HomePage } from '@/features/home/HomePage'
+import { OrgChartPage } from '@/features/home/OrgChartPage'
+import { OrgDepartmentPage } from '@/features/home/OrgDepartmentPage'
 import {
   OrderDetailPage,
   OrderFormPage,
@@ -88,6 +90,8 @@ export function AppRoutes() {
         }
       >
         <Route path="/" element={<HomePage />} />
+        <Route path="/org" element={<OrgChartPage />} />
+        <Route path="/org/:slug" element={<OrgDepartmentPage />} />
         <Route path="/account/password" element={<ChangePasswordPage />} />
         <Route path="/help" element={<HelpPage />} />
 

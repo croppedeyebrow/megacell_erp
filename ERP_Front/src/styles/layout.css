@@ -39,17 +39,10 @@
   text-decoration: none;
 }
 
-.topbar__logo {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: var(--radius-sm);
-  background: var(--color-primary-600);
-  color: white;
-  font-size: 12px;
-  font-weight: 700;
+.topbar__logo-img {
+  display: block;
+  height: 30px;
+  width: auto;
 }
 
 .env-badge {
@@ -313,6 +306,12 @@
   align-items: center;
   gap: var(--space-3);
   margin-bottom: var(--space-5);
+}
+
+.auth-card__logo-img {
+  display: block;
+  height: 44px;
+  width: auto;
 }
 
 .auth-card h1 {

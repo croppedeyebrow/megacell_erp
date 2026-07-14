@@ -1,6 +1,7 @@
 import type { Permission } from '@/types'
 import {
   Home,
+  Users,
   ShoppingCart,
   Factory,
   Package,
@@ -34,6 +35,13 @@ export const NAV_ITEMS: NavItem[] = [
     label: '홈',
     path: '/',
     icon: Home,
+    permission: 'home.view',
+  },
+  {
+    id: 'org',
+    label: '조직도',
+    path: '/org',
+    icon: Users,
     permission: 'home.view',
   },
   {

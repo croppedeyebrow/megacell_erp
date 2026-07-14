@@ -687,6 +687,156 @@
   color: var(--color-neutral-500);
 }
 
+/* ========== Org Chart ========== */
+.org-chart {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--space-2) 0;
+}
+
+.org-chart__node {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 140px;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-md);
+  background: var(--color-neutral-0);
+  text-align: center;
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.org-chart__node:hover {
+  border-color: var(--color-primary-500);
+  box-shadow: var(--shadow-sm);
+}
+
+.org-chart__node--ceo {
+  border-color: var(--color-primary-500);
+  background: var(--color-primary-50);
+}
+
+.org-chart__node--team {
+  min-width: 190px;
+  align-items: stretch;
+}
+
+.org-chart__node-title {
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-neutral-900);
+  text-align: center;
+}
+
+.org-chart__node--ceo .org-chart__node-title {
+  color: var(--color-primary-700);
+}
+
+.org-chart__node-name {
+  font-size: var(--font-size-sm);
+  color: var(--color-neutral-500);
+}
+
+.org-chart__member-list {
+  list-style: none;
+  margin: var(--space-2) 0 0;
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--color-neutral-100);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.org-chart__member {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-1);
+  font-size: var(--font-size-xs);
+  color: var(--color-neutral-700);
+}
+
+.org-chart__member--head {
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-neutral-900);
+}
+
+.org-chart__member-name {
+  flex: none;
+}
+
+.org-chart__member-role {
+  flex: 1;
+  color: var(--color-neutral-500);
+  text-align: right;
+}
+
+.org-chart__member--head .org-chart__member-role {
+  color: var(--color-primary-700);
+}
+
+.org-chart__member-tag {
+  flex: none;
+  font-size: 10px;
+  line-height: 1;
+  color: var(--color-primary-700);
+  background: var(--color-primary-50);
+  border-radius: var(--radius-sm);
+  padding: 2px var(--space-1);
+}
+
+.org-chart__connector {
+  width: 2px;
+  height: var(--space-4);
+  background: var(--color-neutral-300);
+}
+
+.org-chart__teams {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-5);
+  padding-top: var(--space-4);
+  border-top: 2px solid var(--color-neutral-300);
+}
+
+.org-chart__team {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.org-chart__team::before {
+  content: '';
+  position: absolute;
+  top: calc(-1 * var(--space-4));
+  left: 50%;
+  width: 2px;
+  height: var(--space-4);
+  background: var(--color-neutral-300);
+  transform: translateX(-1px);
+}
+
+@media (max-width: 1023px) {
+  .org-chart__teams {
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-3);
+    border-top: none;
+    padding-top: 0;
+  }
+
+  .org-chart__team::before {
+    display: none;
+  }
+}
+
 .meta-row strong {
   color: var(--color-neutral-900);
   font-weight: var(--font-weight-medium);

@@ -10,6 +10,7 @@ import { useAuth } from '@/auth/AuthContext'
 import { IconButton } from '@/components/ui/IconButton'
 import { SearchField } from '@/components/ui/SearchField'
 import { useState, useRef, useEffect } from 'react'
+import logo from '@/assets/Logo_MEGACELL_shadow_A_En.png'
 
 export function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
   const { user, logout } = useAuth()
@@ -34,8 +35,7 @@ export function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
       </IconButton>
 
       <Link to="/" className="topbar__brand">
-        <span className="topbar__logo">MC</span>
-        <span>MegaCell ERP</span>
+        <img src={logo} alt="MegaCell Co., Ltd." className="topbar__logo-img" />
         <span className="env-badge">DEV</span>
       </Link>
 
