@@ -1,0 +1,2 @@
+"""Management Domain repository layer."""
+

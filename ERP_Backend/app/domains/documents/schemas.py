@@ -1,0 +1,2 @@
+"""Documents Domain schemas layer."""
+

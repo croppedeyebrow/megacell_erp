@@ -1,0 +1,2 @@
+"""Inventory Domain service layer."""
+

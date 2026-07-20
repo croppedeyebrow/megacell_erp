@@ -1,0 +1,2 @@
+"""Sales Domain repository layer."""
+

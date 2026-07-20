@@ -1,0 +1,2 @@
+"""Inventory Domain schemas layer."""
+
