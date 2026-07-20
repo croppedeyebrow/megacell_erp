@@ -10,6 +10,7 @@ from app.core.config import settings
 connect_args: dict[str, object] = {}
 if settings.database_url.startswith("sqlite"):
     connect_args["check_same_thread"] = False
+    connect_args["timeout"] = settings.sqlite_busy_timeout_seconds
 
 engine = create_engine(settings.database_url, connect_args=connect_args, future=True)
 
@@ -19,6 +20,9 @@ if settings.database_url.startswith("sqlite"):
     def _sqlite_fk(dbapi_connection, _connection_record) -> None:  # type: ignore[no-untyped-def]
         cursor = dbapi_connection.cursor()
         cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.execute(f"PRAGMA busy_timeout={settings.sqlite_busy_timeout_seconds * 1000}")
+        cursor.execute("PRAGMA journal_mode=WAL")
+        cursor.execute("PRAGMA synchronous=NORMAL")
         cursor.close()
 
 

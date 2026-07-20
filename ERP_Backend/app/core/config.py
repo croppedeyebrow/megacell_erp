@@ -23,5 +23,15 @@ class Settings(BaseSettings):
     login_lock_minutes: int = 15
     password_min_length: int = 8
 
+    api_docs_enabled: bool = True
+    max_request_body_bytes: int = 10 * 1024 * 1024
+    max_query_string_bytes: int = 4096
+    rate_limit_enabled: bool = True
+    rate_limit_window_seconds: int = 60
+    rate_limit_requests_per_window: int = 120
+    auth_rate_limit_requests_per_window: int = 20
+    import_rate_limit_requests_per_window: int = 10
+    sqlite_busy_timeout_seconds: int = 15
+
 
 settings = Settings()
