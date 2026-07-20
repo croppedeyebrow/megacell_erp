@@ -47,7 +47,7 @@ import_legacy.bat
 stop_dev.bat
 ```
 
-창이 두 개 열립니다. `node_modules`가 없으면 Front 쪽에서 `npm install`을 먼저 실행합니다.
+창이 두 개 열립니다. `node_modules`가 없으면 Front 쪽에서 `yarn install --frozen-lockfile`을 먼저 실행합니다.
 
 ### Backend만
 
@@ -59,7 +59,7 @@ run_server.bat
 
 ```bash
 cd ERP_Front
-npm run dev
+yarn dev
 ```
 
 ### Legacy Streamlit (필요 시만)

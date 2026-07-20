@@ -75,3 +75,4 @@ ERP_Front/dist/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+ERP_Front/.tmp/

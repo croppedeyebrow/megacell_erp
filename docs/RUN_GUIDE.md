@@ -37,7 +37,7 @@ python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
 ```bat
 cd /d C:\Users\megaPC\Desktop\megacell_erp\ERP_Front
-npm run dev
+yarn dev
 ```
 
 접속: http://localhost:5173
